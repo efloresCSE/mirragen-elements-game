@@ -15,15 +15,6 @@ This app is designed to teach and reinforce the positions of specific elements f
 - Lanthanides & Actinides Rows – displayed correctly under main table.
 - Centralized State Management – via React Context and reducer.
 
-## Potential Enhancements (Polish / Extras)
-
-These are not core logic but can be added independently for extra polish:
-
-- Improved styling and theming.
-- Progress bars, animations, and subtle sound effects.
-- Leaderboards or high-score tracking.
-- Hints, streak bonuses, or achievements.
-- Dark mode or alternate color palettes.
 
 ## Project Structure
 
