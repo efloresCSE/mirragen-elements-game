@@ -1,50 +1,58 @@
-# Welcome to your Expo app 👋
+# Periodic Table Challenge
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+An interactive mobile game built with React Native and Expo to help users learn and memorize key elements from the periodic table.
 
-## Get started
+## Purpose
 
-1. Install dependencies
+This app is designed to teach and reinforce the positions of specific elements from the periodic table, inspired by the elements used in Mirragen Advanced Wound Care by Engineered Tissue Solutions. The main goal is to make memorization engaging and fun.
 
-   ```bash
-   npm install
-   ```
+## Current Features (Core Game Logic)
 
-2. Start the app
+- Memorization Phase – highlights 6 target elements for a short time.
+- Recall Phase – hides targets and prompts you to tap their positions.
+- Win/Lose States – tracks mistakes and celebrates success.
+- Responsive Periodic Table – shows left/right halves with a toggle.
+- Lanthanides & Actinides Rows – displayed correctly under main table.
+- Centralized State Management – via React Context and reducer.
 
-   ```bash
-   npx expo start
-   ```
+## Potential Enhancements (Polish / Extras)
 
-In the output, you'll find options to open the app in a
+These are not core logic but can be added independently for extra polish:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- Improved styling and theming.
+- Progress bars, animations, and subtle sound effects.
+- Leaderboards or high-score tracking.
+- Hints, streak bonuses, or achievements.
+- Dark mode or alternate color palettes.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Project Structure
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+src/
+  components/
+    ├─ ElementCell.tsx       # Renders a single element cell
+    ├─ PeriodicTable.tsx     # Renders the grid and toggle logic
+  context/
+    ├─ GameContext.tsx       # Game state, reducer, actions
+  data/
+    ├─ elements.ts           # Periodic table data (typed with row/col)
+  screens/
+    ├─ GameScreen.tsx        # Main screen driving the game flow
+App.tsx                      # Entry point, wraps provider
+index.tsx                    # Expo bootstrap
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Tech Stack
 
-## Learn more
+- React Native (UI framework)
+- Expo (build and development environment)
+- TypeScript (type safety)
+- React Context and useReducer (state management)
 
-To learn more about developing your project with Expo, look at the following resources:
+## How to Run
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm install
+npx expo start
+```
 
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
