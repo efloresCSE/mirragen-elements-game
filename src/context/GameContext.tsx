@@ -1,5 +1,6 @@
 "use client"
 
+import * as Haptics from "expo-haptics"
 import { createContext, useContext, useReducer, type ReactNode } from "react"
 import { PERIODIC_TABLE_DATA, TARGET_ELEMENTS } from "../data/elements"
 import type { GameContextType, GameState } from "../types/game"
@@ -14,23 +15,70 @@ function shuffleArray<T>(array: T[]): T[] {
     return copy
 }
 
+// Sound utility function with 50% volume
+const playSound = async (soundFile: any) => {
+    try {
+        const { Audio } = await import("expo-av")
+
+        await Audio.setAudioModeAsync({
+            allowsRecordingIOS: false,
+            staysActiveInBackground: false,
+            playsInSilentModeIOS: true,
+            shouldDuckAndroid: true,
+            playThroughEarpieceAndroid: false,
+        })
+
+        const { sound } = await Audio.Sound.createAsync(soundFile)
+
+        // Set volume to 50%
+        await sound.setVolumeAsync(0.5)
+
+        await sound.playAsync()
+
+        // Clean up sound after playing
+        sound.setOnPlaybackStatusUpdate((status) => {
+            if (status.isLoaded && status.didJustFinish) {
+                sound.unloadAsync()
+            }
+        })
+    } catch (error) {
+        console.log("Error playing sound:", error)
+    }
+}
+
 const initialState: GameState = {
-    phase: "start",
+    phase: "menu",
     targetElements: PERIODIC_TABLE_DATA.filter((el) => TARGET_ELEMENTS.includes(el.atomicNumber)),
     currentElementIndex: 0,
+    currentHighlightedPosition: null,
     correctPlacements: [],
     mistakes: 0,
     maxMistakes: 3,
     timeRemaining: 5,
+    recallTimeRemaining: 30,
+    availableChoices: [],
+    currentChoiceIndex: 0,
+    responseTimes: [],
+    currentElementStartTime: 0,
+    showOriginPopup: false,
+    isPaused: false,
 }
 
 type GameAction =
     | { type: "START_GAME" }
+    | { type: "SHOW_HOW_TO_PLAY" }
+    | { type: "BACK_TO_MENU" }
     | { type: "START_RECALL" }
     | { type: "CORRECT_PLACEMENT"; atomicNumber: number }
     | { type: "WRONG_PLACEMENT" }
+    | { type: "NEXT_CHOICE" }
+    | { type: "PREVIOUS_CHOICE" }
+    | { type: "SELECT_CURRENT_CHOICE" }
     | { type: "RESET_GAME" }
     | { type: "TICK_TIMER" }
+    | { type: "TICK_RECALL_TIMER" }
+    | { type: "SHOW_ORIGIN_POPUP" }
+    | { type: "HIDE_ORIGIN_POPUP" }
 
 function gameReducer(state: GameState, action: GameAction): GameState {
     switch (action.type) {
@@ -42,45 +90,166 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 ...state,
                 phase: "memorize",
                 timeRemaining: 5,
+                recallTimeRemaining: 30,
                 targetElements: shuffledTargets,
                 currentElementIndex: 0,
                 correctPlacements: [],
                 mistakes: 0,
+                currentHighlightedPosition: null,
+                availableChoices: [],
+                currentChoiceIndex: 0,
+                responseTimes: [],
+                currentElementStartTime: 0,
+                showOriginPopup: false,
+                isPaused: false,
             }
         }
 
-        case "CORRECT_PLACEMENT": {
-            const newCorrectPlacements = [...state.correctPlacements, action.atomicNumber]
-            const isGameWon = newCorrectPlacements.length === state.targetElements.length
+        case "SHOW_HOW_TO_PLAY":
             return {
                 ...state,
-                correctPlacements: newCorrectPlacements,
-                phase: isGameWon ? "win" : "recall",
-                currentElementIndex: isGameWon ? state.currentElementIndex : state.currentElementIndex + 1,
+                phase: "howToPlay",
+                showOriginPopup: false,
+            }
+
+        case "BACK_TO_MENU":
+            return {
+                ...initialState,
+                phase: "menu",
+            }
+
+        case "SHOW_ORIGIN_POPUP":
+            return {
+                ...state,
+                showOriginPopup: true,
+                isPaused: true,
+            }
+
+        case "HIDE_ORIGIN_POPUP":
+            return {
+                ...state,
+                showOriginPopup: false,
+                isPaused: false,
+            }
+
+        case "TICK_TIMER": {
+            if (state.isPaused) return state // Don't tick when paused
+
+            const newTime = state.timeRemaining - 1
+            if (newTime <= 0 && state.phase === "memorize") {
+                // Start recall phase with the first target element
+                const currentTarget = state.targetElements[0]
+                // Only use the 6 target elements as choices, shuffled
+                const allChoices = shuffleArray([...state.targetElements])
+
+                return {
+                    ...state,
+                    phase: "recall",
+                    currentHighlightedPosition: { row: currentTarget.row, col: currentTarget.col },
+                    availableChoices: allChoices,
+                    currentChoiceIndex: 0,
+                    currentElementStartTime: Date.now(),
+                }
+            }
+            return {
+                ...state,
+                timeRemaining: newTime,
             }
         }
 
-        case "WRONG_PLACEMENT": {
-            const newMistakes = state.mistakes + 1
-            const isGameLost = newMistakes >= state.maxMistakes
+        case "TICK_RECALL_TIMER": {
+            if (state.isPaused) return state // Don't tick when paused
+
+            const newRecallTime = state.recallTimeRemaining - 1
+            const isTimeUp = newRecallTime <= 0
             return {
                 ...state,
-                mistakes: newMistakes,
-                phase: isGameLost ? "lose" : "recall",
+                recallTimeRemaining: Math.max(0, newRecallTime),
+                phase: isTimeUp ? "gameEnd" : state.phase,
+            }
+        }
+
+        case "NEXT_CHOICE": {
+            return {
+                ...state,
+                currentChoiceIndex: (state.currentChoiceIndex + 1) % state.availableChoices.length,
+                isPaused: false, // Ensure timer continues running
+            }
+        }
+
+        case "PREVIOUS_CHOICE": {
+            return {
+                ...state,
+                currentChoiceIndex:
+                    state.currentChoiceIndex === 0 ? state.availableChoices.length - 1 : state.currentChoiceIndex - 1,
+                isPaused: false, // Ensure timer continues running
+            }
+        }
+
+        case "SELECT_CURRENT_CHOICE": {
+            const selectedElement = state.availableChoices[state.currentChoiceIndex]
+            const currentTarget = state.targetElements[state.currentElementIndex]
+            const responseTime = Date.now() - state.currentElementStartTime
+
+            if (selectedElement.atomicNumber === currentTarget.atomicNumber) {
+                // Correct choice - play success sound
+                playSound(require("../../assets/sound/button_press_release.wav"))
+
+                const newCorrectPlacements = [...state.correctPlacements, selectedElement.atomicNumber]
+                const newResponseTimes = [...state.responseTimes, responseTime]
+                const isGameWon = newCorrectPlacements.length === state.targetElements.length
+
+                if (isGameWon) {
+                    return {
+                        ...state,
+                        correctPlacements: newCorrectPlacements,
+                        responseTimes: newResponseTimes,
+                        phase: "gameEnd",
+                    }
+                } else {
+                    // Move to next element
+                    const nextElementIndex = state.currentElementIndex + 1
+                    const nextTarget = state.targetElements[nextElementIndex]
+
+                    // Remove the correctly placed element from available choices
+                    const remainingChoices = state.availableChoices.filter(
+                        (choice) => choice.atomicNumber !== selectedElement.atomicNumber,
+                    )
+
+                    // Reset current choice index if it's out of bounds
+                    const newChoiceIndex = state.currentChoiceIndex >= remainingChoices.length ? 0 : state.currentChoiceIndex
+
+                    return {
+                        ...state,
+                        correctPlacements: newCorrectPlacements,
+                        responseTimes: newResponseTimes,
+                        currentElementIndex: nextElementIndex,
+                        currentHighlightedPosition: { row: nextTarget.row, col: nextTarget.col },
+                        availableChoices: remainingChoices,
+                        currentChoiceIndex: newChoiceIndex,
+                        currentElementStartTime: Date.now(),
+                    }
+                }
+            } else {
+                // Wrong choice - play error sound and vibrate
+                playSound(require("../../assets/sound/button_press_release_large.wav"))
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+
+                const newResponseTimes = [...state.responseTimes, responseTime]
+                const newMistakes = state.mistakes + 1
+                const isGameLost = newMistakes >= state.maxMistakes
+                return {
+                    ...state,
+                    mistakes: newMistakes,
+                    responseTimes: newResponseTimes,
+                    phase: isGameLost ? "gameEnd" : "recall",
+                    currentElementStartTime: Date.now(), // Reset timer for next attempt
+                }
             }
         }
 
         case "RESET_GAME":
-            return { ...initialState }
-
-        case "TICK_TIMER": {
-            const newTime = state.timeRemaining - 1
-            return {
-                ...state,
-                timeRemaining: newTime,
-                phase: newTime <= 0 && state.phase === "memorize" ? "recall" : state.phase,
-            }
-        }
+            return { ...initialState, phase: "menu" }
 
         default:
             return state
@@ -93,19 +262,38 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const [gameState, dispatch] = useReducer(gameReducer, initialState)
 
     const startGame = () => dispatch({ type: "START_GAME" })
+    const showHowToPlay = () => dispatch({ type: "SHOW_HOW_TO_PLAY" })
+    const backToMenu = () => dispatch({ type: "BACK_TO_MENU" })
     const selectElement = (atomicNumber: number) => {
-        const currentTarget = gameState.targetElements[gameState.currentElementIndex]
-        if (currentTarget && currentTarget.atomicNumber === atomicNumber) {
-            dispatch({ type: "CORRECT_PLACEMENT", atomicNumber })
-        } else {
-            dispatch({ type: "WRONG_PLACEMENT" })
-        }
+        // This is now unused in the new game logic
     }
+    const nextChoice = () => dispatch({ type: "NEXT_CHOICE" })
+    const previousChoice = () => dispatch({ type: "PREVIOUS_CHOICE" })
+    const selectCurrentChoice = () => dispatch({ type: "SELECT_CURRENT_CHOICE" })
     const resetGame = () => dispatch({ type: "RESET_GAME" })
     const tickTimer = () => dispatch({ type: "TICK_TIMER" })
+    const tickRecallTimer = () => dispatch({ type: "TICK_RECALL_TIMER" })
+    const showOriginPopup = () => dispatch({ type: "SHOW_ORIGIN_POPUP" })
+    const hideOriginPopup = () => dispatch({ type: "HIDE_ORIGIN_POPUP" })
 
     return (
-        <GameContext.Provider value={{ gameState, startGame, selectElement, resetGame, tickTimer }}>
+        <GameContext.Provider
+            value={{
+                gameState,
+                startGame,
+                showHowToPlay,
+                backToMenu,
+                selectElement,
+                nextChoice,
+                previousChoice,
+                selectCurrentChoice,
+                resetGame,
+                tickTimer,
+                tickRecallTimer,
+                showOriginPopup,
+                hideOriginPopup,
+            }}
+        >
             {children}
         </GameContext.Provider>
     )
