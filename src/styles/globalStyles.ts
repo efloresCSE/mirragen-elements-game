@@ -12,7 +12,6 @@ export const globalStyles = StyleSheet.create({
     },
 })
 
-// Helper function to get font family based on weight
 export const getSourceSerifFont = (weight: "regular" | "semibold" | "bold" = "regular") => {
     switch (weight) {
         case "semibold":

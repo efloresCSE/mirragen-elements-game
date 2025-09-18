@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { SafeAreaView, StyleSheet, Text, View } from "react-native"
 import BurgerMenu from "../components/BurgerMenu"
 import ElementCarousel from "../components/ElementCarousel"
@@ -9,295 +9,221 @@ import PeriodicTable from "../components/PeriodicTable"
 import WheelIndicator from "../components/WheelIndicator"
 import { useGame } from "../context/GameContext"
 import { getSourceSerifFont } from "../styles/globalStyles"
+import { useThemeTokens } from "../styles/theme"
+import { preloadOriginIcons } from "../utils/assets"
 import GameEndScreen from "./GameEndScreen"
 import HowToPlayScreen from "./HowToPlayScreen"
 import StartScreen from "./StartScreen"
 
 export default function GameScreen() {
-    const {
-        gameState,
-        tickTimer,
-        tickRecallTimer,
-        nextChoice,
-        previousChoice,
-        selectCurrentChoice,
-        showOriginPopup,
-        hideOriginPopup,
-        showHowToPlay,
-    } = useGame()
+  const {
+    gameState,
+    tickTimer,
+    tickRecallTimer,
+    nextChoice,
+    previousChoice,
+    selectCurrentChoice,
+    showOriginPopup,
+    hideOriginPopup,
+    showHowToPlay,
+  } = useGame()
 
-    // Countdown effect during memorize phase - simplified dependencies
-    useEffect(() => {
-        let interval: ReturnType<typeof setInterval> | null = null
+  const { colors, fontSize, spacing, width } = useThemeTokens()
+  const wide = width > 768
 
-        if (gameState.phase === "memorize" && gameState.timeRemaining > 0 && !gameState.isPaused) {
-            interval = setInterval(() => {
-                tickTimer()
-            }, 1000)
-        }
-
-        return () => {
-            if (interval) clearInterval(interval)
-        }
-    }, [gameState.phase, gameState.timeRemaining, gameState.isPaused]) // Removed tickTimer dependency
-
-    // Countdown effect during recall phase - simplified dependencies
-    useEffect(() => {
-        let interval: ReturnType<typeof setInterval> | null = null
-
-        if (gameState.phase === "recall" && gameState.recallTimeRemaining > 0 && !gameState.isPaused) {
-            interval = setInterval(() => {
-                tickRecallTimer()
-            }, 1000)
-        }
-
-        return () => {
-            if (interval) clearInterval(interval)
-        }
-    }, [gameState.phase, gameState.recallTimeRemaining, gameState.isPaused]) // Removed tickRecallTimer dependency
-
-    // Show full screen components for menu and how to play
-    if (gameState.phase === "menu") {
-        return <StartScreen />
+  const [iconsReady, setIconsReady] = useState(false)
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      try {
+        await preloadOriginIcons()
+      } catch {}
+      if (alive) setIconsReady(true)
+    })()
+    return () => {
+      alive = false
     }
+  }, [])
 
-    if (gameState.phase === "howToPlay") {
-        return <HowToPlayScreen />
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | undefined
+    if (gameState.phase === "memorize" && gameState.timeRemaining > 0 && !gameState.isPaused) {
+      interval = setInterval(() => tickTimer(), 1000)
     }
-
-    if (gameState.phase === "gameEnd") {
-        return <GameEndScreen />
+    return () => {
+      if (interval) clearInterval(interval)
     }
+  }, [gameState.phase, gameState.timeRemaining, gameState.isPaused, tickTimer])
 
-    // Render progress circles (5 total, filled green for correct placements)
-    const renderProgressCircles = () => {
-        const circles = []
-        for (let i = 0; i < 5; i++) {
-            const isFilled = i < gameState.correctPlacements.length
-            circles.push(
-                <View
-                    key={`progress-${i}`}
-                    style={[
-                        styles.circle,
-                        isFilled ? styles.progressFilled : styles.circleEmpty
-                    ]}
-                />
-            )
-        }
-        return circles
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | undefined
+    if (gameState.phase === "recall" && gameState.recallTimeRemaining > 0 && !gameState.isPaused) {
+      interval = setInterval(() => tickRecallTimer(), 1000)
     }
-
-    // Render mistake circles (3 total, filled red for mistakes)
-    const renderMistakeCircles = () => {
-        const circles = []
-        for (let i = 0; i < 3; i++) {
-            const isFilled = i < gameState.mistakes
-            circles.push(
-                <View
-                    key={`mistake-${i}`}
-                    style={[
-                        styles.circle,
-                        isFilled ? styles.mistakeFilled : styles.circleEmpty
-                    ]}
-                />
-            )
-        }
-        return circles
+    return () => {
+      if (interval) clearInterval(interval)
     }
+  }, [gameState.phase, gameState.recallTimeRemaining, gameState.isPaused, tickRecallTimer])
 
-    // Show game layout for all other phases
-    const renderGameContent = () => {
-        switch (gameState.phase) {
-            case "memorize":
-                return (
-                    <SafeAreaView style={styles.container}>
-                        {/* Text overlay positioned in the empty space above the table */}
-                        <View style={styles.memorizeOverlay}>
-                            <Text style={styles.memorizeTitle}>MEMORIZE</Text>
-                            <Text style={styles.memorizeTimer}>{gameState.timeRemaining}</Text>
-                        </View>
+  const renderProgressCircles = () =>
+    Array.from({ length: 5 }).map((_, i) => {
+      const isFilled = i < gameState.correctPlacements.length
+      return <View key={`p-${i}`} style={[s.circle, isFilled ? s.progressFilled : s.circleEmpty]} />
+    })
 
-                        {/* Use the same container structure as recall phase */}
-                        <View style={styles.tableContainer}>
-                            <PeriodicTable />
-                        </View>
+  const renderMistakeCircles = () =>
+    Array.from({ length: 3 }).map((_, i) => {
+      const isFilled = i < gameState.mistakes
+      return <View key={`m-${i}`} style={[s.circle, isFilled ? s.mistakeFilled : s.circleEmpty]} />
+    })
 
-                        {/* Burger Menu */}
-                        <BurgerMenu onPress={showOriginPopup} />
+  if (gameState.phase === "menu") return <StartScreen />
+  if (gameState.phase === "howToPlay") return <HowToPlayScreen />
+  if (gameState.phase === "gameEnd") return <GameEndScreen />
 
-                        {/* Origin Popup */}
-                        <OriginPopup
-                            visible={gameState.showOriginPopup}
-                            onClose={hideOriginPopup}
-                            onHowToPlay={() => {
-                                hideOriginPopup()
-                                showHowToPlay()
-                            }}
-                        />
-                    </SafeAreaView>
-                )
+  const s = StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    tableContainer: { flex: 1, position: "relative" },
 
-            case "recall":
-                return (
-                    <SafeAreaView style={styles.container}>
-                        {/* Center overlay with timer and circles */}
-                        <View style={styles.centerOverlay}>
-                            <View style={styles.timerSection}>
-                                {/* Circles container on the left */}
-                                <View style={styles.circlesContainer}>
-                                    {/* Progress circles on top */}
-                                    <View style={styles.progressCircles}>
-                                        {renderProgressCircles()}
-                                    </View>
-
-                                    {/* Mistake circles on bottom */}
-                                    <View style={styles.mistakeCircles}>
-                                        {renderMistakeCircles()}
-                                    </View>
-                                </View>
-
-                                {/* Timer on the right */}
-                                <Text style={[styles.timer, gameState.recallTimeRemaining <= 10 ? styles.timerWarning : null]}>
-                                    {gameState.recallTimeRemaining}
-                                </Text>
-                            </View>
-                        </View>
-
-                        {/* Use the same container structure as memorize phase */}
-                        <View style={styles.tableContainer}>
-                            <PeriodicTable />
-
-                            {/* Element Carousel positioned absolutely on the right */}
-                            <ElementCarousel
-                                elements={gameState.availableChoices}
-                                currentIndex={gameState.currentChoiceIndex}
-                                onSelect={selectCurrentChoice}
-                                onNext={nextChoice}
-                                onPrevious={previousChoice}
-                            />
-                        </View>
-
-                        {/* Wheel Indicator positioned relative to screen - moved outside tableContainer */}
-                        <View style={styles.wheelIndicatorContainer}>
-                            <WheelIndicator elements={gameState.availableChoices} currentIndex={gameState.currentChoiceIndex} />
-                        </View>
-
-                        {/* Burger Menu */}
-                        <BurgerMenu onPress={showOriginPopup} />
-
-                        {/* Origin Popup */}
-                        <OriginPopup
-                            visible={gameState.showOriginPopup}
-                            onClose={hideOriginPopup}
-                            onHowToPlay={() => {
-                                hideOriginPopup()
-                                showHowToPlay()
-                            }}
-                        />
-                    </SafeAreaView>
-                )
-
-            default:
-                return null
-        }
-    }
-
-    return renderGameContent()
-}
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#000000",
-    },
-    // Single shared container for both phases to ensure identical positioning
-    tableContainer: {
-        flex: 1,
-        position: "relative",
-    },
     memorizeOverlay: {
-        position: "absolute",
-        top: 40,
-        left: 0,
-        right: 120, // Updated right margin to shift text a bit more left
-        alignItems: "center", // Keep centered alignment
-        zIndex: 10,
+      position: "absolute",
+      top: 40,
+      left: 0,
+      right: wide ? 160 : 140,
+      alignItems: "center",
+      zIndex: 10,
     },
     memorizeTitle: {
-        fontSize: 18,
-        fontWeight: "600",
-        fontFamily: getSourceSerifFont("semibold"),
-        color: "#FFFFFF",
-        letterSpacing: 2,
-        marginBottom: 8,
+      fontSize: fontSize.lg,
+      fontWeight: "600",
+      fontFamily: getSourceSerifFont("semibold"),
+      color: colors.text,
+      letterSpacing: wide ? 3 : 2,
+      marginBottom: spacing.sm,
     },
     memorizeTimer: {
-        fontSize: 24,
-        fontWeight: "bold",
-        fontFamily: getSourceSerifFont("bold"),
-        color: "#FFFFFF",
-        textAlign: "center", // Keep center alignment
+      fontSize: fontSize.xl,
+      fontWeight: "bold",
+      fontFamily: getSourceSerifFont("bold"),
+      color: colors.text,
+      textAlign: "center",
     },
+
     centerOverlay: {
-        position: "absolute",
-        top: 30, // Moved higher up
-        left: 0,
-        right: 120,
-        alignItems: "center",
-        zIndex: 10,
+      position: "absolute",
+      top: 30,
+      left: 0,
+      right: wide ? 160 : 140,
+      alignItems: "center",
+      zIndex: 10,
     },
-    timerSection: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 20, // Space between circles and timer
-    },
-    circlesContainer: {
-        alignItems: "flex-start", // Align circles to the left
-        gap: 8, // Space between progress and mistake rows
-    },
+    timerSection: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.lg },
+    circlesContainer: { alignItems: "flex-start", gap: spacing.sm },
     timer: {
-        fontSize: 32, // Made timer larger since it's the main focus
-        fontWeight: "bold",
-        fontFamily: getSourceSerifFont("bold"),
-        color: "#FFFFFF",
-        textAlign: "center",
-        minWidth: 60, // Ensure consistent width
+      fontSize: wide ? 42 : 32,
+      fontWeight: "bold",
+      fontFamily: getSourceSerifFont("bold"),
+      color: colors.text,
+      textAlign: "center",
+      minWidth: wide ? 80 : 60,
     },
-    timerWarning: {
-        color: "#FF6B6B",
-    },
-    mistakeCircles: {
-        flexDirection: "row",
-        gap: 6, // Small gap between circles
-    },
-    progressCircles: {
-        flexDirection: "row",
-        gap: 6, // Small gap between circles
-    },
+    timerWarning: { color: colors.error },
+
+    mistakeCircles: { flexDirection: "row", gap: wide ? 10 : 6 },
+    progressCircles: { flexDirection: "row", gap: wide ? 10 : 6 },
     circle: {
-        width: 8, // Reduced from 12 to 10
-        height: 8, // Reduced from 12 to 10
-        borderRadius: 4, // Reduced from 6 to 5
-        borderWidth: 2,
+      width: wide ? 12 : 8,
+      height: wide ? 12 : 8,
+      borderRadius: wide ? 6 : 4,
+      borderWidth: wide ? 3 : 2,
     },
-    circleEmpty: {
-        borderColor: "#FFFFFF",
-        backgroundColor: "transparent",
-    },
-    progressFilled: {
-        borderColor: "#4CAF50",
-        backgroundColor: "#4CAF50",
-    },
-    mistakeFilled: {
-        borderColor: "#FF6B6B",
-        backgroundColor: "#FF6B6B",
-    },
+    circleEmpty: { borderColor: colors.border, backgroundColor: "transparent" },
+    progressFilled: { borderColor: colors.success, backgroundColor: colors.success },
+    mistakeFilled: { borderColor: colors.error, backgroundColor: colors.error },
+
     wheelIndicatorContainer: {
-        position: "absolute",
-        right: 10, // Now positioned relative to screen edge, can get much closer
-        top: "50%",
-        marginTop: -145, // Adjusted for the new height
-        zIndex: 20,
+      position: "absolute",
+      right: 0,
+      top: "50%",
+      marginTop: wide ? -140 : -120, 
+      zIndex: 20,
     },
-})
+  })
+
+  const needsIcons = gameState.phase === "memorize" || gameState.phase === "recall"
+  if (needsIcons && !iconsReady) {
+    return <SafeAreaView style={s.container} />
+  }
+
+  switch (gameState.phase) {
+    case "memorize":
+      return (
+        <SafeAreaView style={s.container}>
+          <View style={s.memorizeOverlay}>
+            <Text style={s.memorizeTitle}>MEMORIZE</Text>
+            <Text style={s.memorizeTimer}>{gameState.timeRemaining}</Text>
+          </View>
+
+          <View style={s.tableContainer}>
+            <PeriodicTable />
+          </View>
+
+          <BurgerMenu onPress={showOriginPopup} />
+          <OriginPopup
+            visible={gameState.showOriginPopup}
+            onClose={hideOriginPopup}
+            onHowToPlay={() => {
+              hideOriginPopup()
+              showHowToPlay()
+            }}
+          />
+        </SafeAreaView>
+      )
+
+    case "recall":
+      return (
+        <SafeAreaView style={s.container}>
+          <View style={s.centerOverlay}>
+            <View style={s.timerSection}>
+              <View style={s.circlesContainer}>
+                <View style={s.progressCircles}>{renderProgressCircles()}</View>
+                <View style={s.mistakeCircles}>{renderMistakeCircles()}</View>
+              </View>
+
+              <Text style={[s.timer, gameState.recallTimeRemaining <= 10 ? s.timerWarning : null]}>
+                {gameState.recallTimeRemaining}
+              </Text>
+            </View>
+          </View>
+
+          <View style={s.tableContainer}>
+            <PeriodicTable />
+            <ElementCarousel
+              elements={gameState.availableChoices}
+              currentIndex={gameState.currentChoiceIndex}
+              onSelect={selectCurrentChoice}
+              onNext={nextChoice}
+              onPrevious={previousChoice}
+            />
+          </View>
+
+          <View style={s.wheelIndicatorContainer}>
+            <WheelIndicator elements={gameState.availableChoices} currentIndex={gameState.currentChoiceIndex} />
+          </View>
+
+          <BurgerMenu onPress={showOriginPopup} />
+          <OriginPopup
+            visible={gameState.showOriginPopup}
+            onClose={hideOriginPopup}
+            onHowToPlay={() => {
+              hideOriginPopup()
+              showHowToPlay()
+            }}
+          />
+        </SafeAreaView>
+      )
+
+    default:
+      return null
+  }
+}
