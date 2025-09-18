@@ -22,42 +22,41 @@ This app is designed to teach and reinforce the positions of specific elements f
 
 \`\`\`
 src/
-  components/
-    ├─ BurgerMenu.tsx           # Menu button with safe area handling
-    ├─ ElementCard.tsx          # Detailed element card for carousel
-    ├─ ElementCarousel.tsx      # Swipeable element selection interface
-    ├─ ElementCell.tsx          # Individual periodic table cell
-    ├─ InstantImage.tsx         # Optimized image component
-    ├─ OptimizedSelectionIcon.tsx # Performance-optimized selection indicator
-    ├─ OriginPopup.tsx          # Modal showing element origins
-    ├─ PeriodicTable.tsx        # Complete periodic table with borders
-    └─ WheelIndicator.tsx       # Visual carousel position indicator
-  context/
-    └─ GameContext.tsx          # Game state, reducer, actions
-  data/
-    └─ elements.ts              # Complete periodic table data (118 elements)
-  hooks/
-    └─ useDeviceType.ts         # Device detection (phone/tablet)
-  screens/
-    ├─ GameEndScreen.tsx        # Results and statistics screen
-    ├─ GameScreen.tsx           # Main game coordinator
-    ├─ HowToPlayScreen.tsx      # Interactive tutorial
-    └─ StartScreen.tsx          # Main menu screen
-  styles/
-    ├─ globalStyles.ts          # Font utilities and global styles
-    ├─ howToPlayStyles.ts       # Tutorial-specific styles
-    └─ theme.ts                 # Responsive design tokens
-  types/
-    └─ game.ts                  # TypeScript interfaces
-  utils/
-    ├─ assets.ts                # Asset preloading utilities
-    ├─ audio.ts                 # Sound management system
-    └─ elements.ts              # Element data utilities
-App.tsx                         # Entry point with providers
+├── components/
+│ ├── BurgerMenu.tsx # Menu button with safe area handling
+│ ├── ElementCard.tsx # Detailed element card for carousel
+│ ├── ElementCarousel.tsx # Swipeable element selection interface
+│ ├── ElementCell.tsx # Individual periodic table cell
+│ ├── OriginPopup.tsx # Modal showing element origins
+│ ├── PeriodicTable.tsx # Complete periodic table with borders
+│ └── WheelIndicator.tsx # Visual carousel position indicator
+├── context/
+│ └── GameContext.tsx # Game state, reducer, actions
+├── data/
+│ └── elements.ts # Complete periodic table data (118 elements)
+├── hooks/
+│ └── useDeviceType.ts # Device detection (phone/tablet)
+├── screens/
+│ ├── GameEndScreen.tsx # Results and statistics screen
+│ ├── GameScreen.tsx # Main game coordinator
+│ ├── HowToPlayScreen.tsx # Interactive tutorial
+│ └── StartScreen.tsx # Main menu screen
+├── styles/
+│ ├── globalStyles.ts # Font utilities and global styles
+│ └── theme.ts # Responsive design tokens
+├── types/
+│ └── game.ts # TypeScript interfaces
+└── utils/
+├── assets.ts # Asset preloading utilities
+├── audio.ts # Sound management system
+└── elements.ts # Element data utilities
+
 app/
-  ├─ _layout.tsx               # Expo Router layout
-  └─ page.tsx                  # Main page component
-index.tsx                      # Expo bootstrap
+├── \_layout.tsx # Expo Router layout
+└── page.tsx # Main page component
+
+App.tsx # Entry point with providers
+index.tsx # Expo bootstrap
 \`\`\`
 
 ## Tech Stack
@@ -89,24 +88,29 @@ npx expo start
 ## Key Components Explained
 
 ### Game Management
+
 - **GameContext.tsx** - Centralized state management with reducer pattern
 - **GameScreen.tsx** - Orchestrates game phases and UI transitions
 
 ### Periodic Table
+
 - **PeriodicTable.tsx** - Renders complete 118-element table with custom SVG borders
 - **ElementCell.tsx** - Individual cells with origin icons and responsive sizing
 
 ### Element Selection
+
 - **ElementCarousel.tsx** - Horizontal swipeable element browser
 - **ElementCard.tsx** - Detailed element information cards
 - **WheelIndicator.tsx** - Visual position indicator for carousel
 
 ### User Interface
+
 - **OriginPopup.tsx** - Educational modal about element cosmic origins
 - **HowToPlayScreen.tsx** - Multi-card tutorial with gesture navigation
 - **BurgerMenu.tsx** - Accessible menu button with safe area support
 
 ### Utilities
+
 - **audio.ts** - Preloading, throttling, and volume management for sound effects
 - **theme.ts** - Responsive design tokens that adapt to device type
 - **elements.ts** - Element data processing and origin icon mapping
