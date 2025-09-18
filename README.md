@@ -1,4 +1,4 @@
-# Periodic Table Challenge
+# The Origins of the Elements
 
 An interactive mobile game built with React Native and Expo to help users learn and memorize key elements from the periodic table.
 
